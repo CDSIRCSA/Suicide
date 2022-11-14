@@ -212,7 +212,7 @@ map_df_json <- fromJSON(file = "C:/Users/jagvan/OneDrive - South Australia Gover
            x=1, y=1,
            len=1) %>% 
   layout(mapbox=list(style="carto-positron",
-                     zoom=4.5,
+                     zoom=4.2,
                      center=list(lon=135, lat=-33))))
 
 saveWidget(figure3, "Blog_figures/figure3.html", selfcontained = F, libdir = "index_files")
