@@ -218,4 +218,14 @@ map_df_json <- fromJSON(file = "C:/Users/jagvan/OneDrive - South Australia Gover
 saveWidget(figure3, "Blog_figures/figure3.html", selfcontained = F, libdir = "index_files")
 ```
 
+```{r}
+suicides %>% 
+  count(cultural_background)
+
+suicides %>% 
+  count(cald)
+
+suicides %>% 
+  count(disability_register)
+```
 
