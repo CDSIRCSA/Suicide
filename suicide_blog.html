@@ -4,8 +4,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     <link rel="stylesheet" href="css/style.css">
-    <!--My font awesome kit-->
-    <script src="https://kit.fontawesome.com/9108028090.js" crossorigin="anonymous"></script>
     <script src="scripts/script.js"></script> 
 </head>
 
@@ -20,23 +18,33 @@
     </div>
 
     <div class="row">
-        <div id="dropdown" class="col-12">
-            <div>
-                <label for="fig_select"><strong style="font-size: 1em;">Select figure:</strong></label><br>
-                <select id="fig_select" class="form-control" style="width: 100%" onchange="setIframe()">
-                    <option value="Blog_figures/figure1_bar.html">Figure 1: Suicides by year and sex</option>
-                    <option value="Blog_figures/figure2.html">Figure 2: Suicides by age and sex</option>
-                    <option value="Blog_figures/figure3.html">Figure 3: Suicides by region</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="container">
-            <iframe class="responsive-iframe" src="Blog_figures/figure1_bar.html" id="figure-display"></iframe>
+        <div id="dropdown" style="width: 100%">
+            <label for="fig_select"><strong style="font-size: 1em;">Select figure:</strong></label><br>
+            <select id="fig_select" class="form-control" style="width: 100%" onchange="cod_setIframe()">
+                <option id="figure1" value="Blog_figures/figure1_bar.html">Figure 1: Suicides by year and sex</option>
+                <option id="figure2" value="Blog_figures/figure2.html">Figure 2: Suicides by age and sex</option>
+                <option id="figure3" value="Blog_figures/figure3_numbers.html">Figure 3: Suicides by region</option>
+            </select>
+            <br>
         </div>
     </div>
 
+    <div class="row" id="buttonBlock" style="display: none;">
+        <button class="cod-sub-button" value="Blog_figures/figure3_numbers.html" onclick="subButtonSetIframe(this)">Numbers</button>
+        <button class="cod-sub-button" value="Blog_figures/figure3_rates.html" onclick="subButtonSetIframe(this)">Rates</button>
+    </div>
+
+
+    <div class="row">
+
+        <div class="if-container" style="padding-top: 65%;">
+            <iframe class="responsive-iframe" src="Blog_figures/figure1_bar.html" id="figure-display"></iframe>
+        </div>
         
+    </div>
+
+    <div><br></div>
+
     <div class="text-section">
         <br>
         <h4></h4>
@@ -55,6 +63,7 @@
         
         <br><br><br><br>
     </div>
+        
 </body>
 
 </html>
