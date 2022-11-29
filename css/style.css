@@ -2,8 +2,9 @@
   position: relative;
   overflow: auto;
   width: 100%;
-  max-width: 1200px;
-  padding-top: 65%; 
+  max-width: 1000px;
+  padding-top: 55%; 
+  margin: auto;
 }
   
   /* Then style the iframe to fit in the container div with full height and width */
@@ -19,7 +20,7 @@
 }  
 
 .text-section, .row {
-    width: 80%;
+    width: 60%;
     margin-left: auto;
     margin-right: auto;
 }
