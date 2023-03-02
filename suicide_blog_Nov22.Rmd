@@ -1,0 +1,282 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(plotly)
+library(hablar)
+library(rgdal)
+library(sf)
+library(zeallot)
+library(ggalt)
+library(rjson)
+library(htmlwidgets)
+```
+
+Load the data from REDCap with the import_data.R file
+
+Transform the data
+```{r}
+data = data %>% 
+  mutate(age_group = fct_relevel(age_group, "< 28 days", "1 to 11 months", "1 to 4 years", "5 to 9 years", "10 to 14 years", "15 to 17 years"))
+
+suicides = filter(data, category_of_death == "Suicide")
+```
+
+STATS
+Number of suicides and age range
+```{r}
+n_suicides = nrow(suicides)
+min_age = min(suicides$age_years)
+max_age = max(suicides$age_years)
+perc_suicides = round((nrow(suicides)/nrow(filter(data, age_years>=min_age)))*100,0)
+
+paste0("The Committee has determined that ", n_suicides, " young people – aged from ", min_age, " to ", max_age, " years – have suicided since 2005, ", perc_suicides, "% of the total number of children in that age range who have died in South Australia since 2005.")
+```
+
+Category of death ranking
+```{r}
+filter(data, age_years >= min_age) %>% 
+  count(category_of_death) %>% 
+  arrange(desc(n))
+```
+
+
+FIGURES
+Figure 1
+```{r}
+custom_colours <- c("#000000", "#FEB627", "#7E7E7E", "#27B9FE", "#FFFFFF")
+line_colours <- setNames(custom_colours[c(2, 4, 3)],
+                         c("Female", "Male", "Total"))
+yearly_suicides <- suicides %>% count(year_of_death, sex) %>% complete(year_of_death, sex, fill=list(n=0)) %>% mutate(type = 1) %>% 
+  bind_rows(suicides %>% count(year_of_death) %>% mutate(sex = "Total", type = 2))
+
+# Figure 1
+(figure1_line <- plot_ly(data = filter(yearly_suicides, sex=="Total"),
+                    type = "scatter",
+                    mode = "lines",
+                    x = ~year_of_death,
+                    y = ~n,
+                    hovertemplate = paste0("Number of deaths: ","%{y}"),
+                    line = list(width = 4, dash="dash", color=custom_colours[3]), name="Total") %>% 
+    add_trace(data = filter(yearly_suicides, sex=="Male"),
+              y = ~n,
+              line = list(width = 4, dash='solid', color=custom_colours[4]),
+              name = "Male") %>% 
+    add_trace(data = filter(yearly_suicides, sex=="Female"),
+              y = ~n,
+              line = list(width = 4, dash='solid', color=custom_colours[2]),
+              name = "Female") %>% 
+    layout(xaxis = list(title = "Year",
+                        tickvals = list(2005,2007,2009,2011,2013,2015,2017,2019,2021),
+                        range = c(2004, 2022)),
+           yaxis = list(title = "Number of suicides",
+                        range = c(0, 10)),
+           font = list(size = 14),
+           legend = list(x = 0.08, y = 0.93, bgcolor = "rgba(0, 0, 0, 0)")))
+
+saveWidget(figure1_line, "Blog_figures/figure1_line.html", selfcontained = F, libdir = "index_files")
+```
+
+```{r}
+(figure1_bar <- plot_ly(hovertemplate = paste0("%{x}\nNumber of deaths: ","%{y}")) %>% 
+    add_trace(data = filter(yearly_suicides, sex=="Total"),
+              type = "scatter",
+              mode = "lines",
+              x = ~year_of_death,
+              y = ~n,
+              line = list(width = 4, dash="dash", color=custom_colours[3]), 
+              name="Total") %>% 
+    add_trace(data = filter(yearly_suicides, sex=="Male"),
+              type="bar",
+              x = ~year_of_death,
+              y = ~n,
+              marker = list(color=custom_colours[4]),
+              name = "Male") %>% 
+    add_trace(data = filter(yearly_suicides, sex=="Female"),
+              type="bar",
+              x = ~year_of_death,
+              y = ~n,
+              marker = list(color=custom_colours[2]),
+              name = "Female") %>% 
+    layout(xaxis = list(title = "Year",
+                        tickvals = list(2005,2007,2009,2011,2013,2015,2017,2019,2021),
+                        range = c(2004, 2022)),
+           yaxis = list(title = "Number of suicides",
+                        range = c(0, 10)),
+           font = list(size = 14),
+           legend = list(x = 0.08, y = 0.93, bgcolor = "rgba(0, 0, 0, 0)")) %>% 
+    add_annotations(x = 2021,
+                    y = 3.5,
+                    text = "*",
+                    xref = "x",
+                    yref = "y",
+                    showarrow = FALSE))
+
+saveWidget(figure1_bar, "Blog_figures/figure1_bar.html", selfcontained = F, libdir = "index_files")
+```
+
+Figure 2
+```{r}
+suicides_age_sex = suicides %>% 
+  count(age_years, sex) %>% 
+  complete(age_years, sex, fill=list(n=0))
+
+(figure2 <- plot_ly(
+              data = suicides_age_sex,
+              type = "bar",
+              x = ~age_years,
+              y = ~n,
+              color = ~sex,
+              colors = custom_colours[c(2,4)],
+              hovertemplate = paste0("Number of deaths: ","%{y}")) %>% 
+    layout(xaxis = list(title = "Age (years)"),
+           yaxis = list(title = "Number of suicides",
+                        range = c(0, 26)),
+           font = list(size = 14),
+           legend = list(x = 0.08, y = 0.93, bgcolor = "rgba(0, 0, 0, 0)")))
+
+saveWidget(figure2, "Blog_figures/figure2.html", selfcontained = F, libdir = "index_files")
+```
+
+Figure 3
+```{r}
+# Deaths rates by region - load and transform data
+postcode_denominators = read_csv("C:\\Users\\jagvan\\OneDrive - South Australia Government\\Code\\Population\\postcode_denominators_SRA.csv")
+
+numerator_region <- suicides %>%
+  filter(!is.na(region)) %>% 
+  count(region)
+
+denominator_region <- postcode_denominators %>%
+  filter(!is.na(region),
+         age_years >= min_age & age_years <= max_age) %>%
+  group_by(region) %>%
+  summarise_at("adjusted_population", sum) %>%
+  ungroup()
+
+rates_regions <- numerator_region %>%
+  right_join(denominator_region, by = "region") %>%
+  mutate(rate = (n/adjusted_population)*100000) %>% 
+  mutate_all(~replace(., is.na(.), 0))
+```
+
+```{r}
+map_colours <- c("#FFFFFF", "#FEB627")
+pal <- colorRampPalette(map_colours)
+colourscale <- pal(100)
+
+map_df_json <- fromJSON(file = "C:/Users/jagvan/OneDrive - South Australia Government/Code/Population/gov_regions/SAGovtRegions_GDA2020.json")
+
+(figure3_rates <- plot_ly() %>% 
+  add_trace(type="choroplethmapbox",
+            geojson=map_df_json,
+            locations=rates_regions$region,
+            z=round(rates_regions$rate,2),
+            colors=colourscale,
+            zmax=13,
+            zmin=0,
+            featureidkey="properties.region",
+            marker=list(opacity=0.75),
+            text=rates_regions$region,
+            hovertemplate=paste0("Suicide rate: %{z} \n",
+                                 "Number of suicides: ",
+                                 rates_regions$n,
+                                 "<extra>%{text}</extra>")) %>% 
+  colorbar(title = "Suicide rate\nper 100,000\nresident\npopulation\n \n ",
+           x=1, y=1,
+           len=1) %>% 
+  layout(mapbox=list(style="carto-positron",
+                     zoom=4.2,
+                     center=list(lon=135, lat=-33))))
+
+saveWidget(figure3_rates, "Blog_figures/figure3_rates.html", selfcontained = F, libdir = "index_files")
+```
+
+```{r}
+(figure3_numbers <- plot_ly() %>% 
+  add_trace(type="choroplethmapbox",
+            geojson=map_df_json,
+            locations=rates_regions$region,
+            z=rates_regions$n,
+            colors=colourscale,
+            zmax=17,
+            zmin=0,
+            featureidkey="properties.region",
+            marker=list(opacity=0.75),
+            text=rates_regions$region,
+            hovertemplate=paste0("Suicide rate: ",  round(rates_regions$rate,2), "\n",
+                                 "Number of suicides: ",
+                                 rates_regions$n,
+                                 "<extra>%{text}</extra>")) %>% 
+  colorbar(title = "Number of\nsuicides ",
+           x=1, y=1,
+           len=1) %>% 
+  layout(mapbox=list(style="carto-positron",
+                     zoom=4.2,
+                     center=list(lon=135, lat=-33))))
+
+saveWidget(figure3_numbers, "Blog_figures/figure3_numbers.html", selfcontained = F, libdir = "index_files")
+```
+
+```{r}
+rates_disadvantage <- suicides %>% count(year_of_death, seifa_disadvantage) %>% 
+  left_join(postcode_denominators %>% 
+              rename(seifa_disadvantage = SEIFA_disadvantage,
+                     year_of_death = year) %>% 
+              group_by(year_of_death, seifa_disadvantage) %>% 
+              summarise_at(c("adjusted_population"), sum), by = c("year_of_death", "seifa_disadvantage")) %>%
+  mutate(rate = (n/adjusted_population)*100000) %>%
+  group_by(seifa_disadvantage) %>%
+  summarise(rate = mean(rate), Deaths = sum(n)) %>%
+  head(-1)
+```
+
+```{r}
+seifa_colours <- c("#FEB627", "#27B9FE", "mediumseagreen", "sienna2", "slateblue2")
+
+(figure4 <- plot_ly(data = rates_disadvantage,
+                    type = "bar",
+                    color = ~as.factor(seifa_disadvantage),
+                    colors = seifa_colours,
+                    x = ~as.factor(seifa_disadvantage), 
+                    y = ~round(rate, 2),
+                    hovertemplate = paste0("Suicide rate: ", "%{y}\n",
+                                           "Number of deaths: ", rates_disadvantage$Deaths,
+                                           "<extra></extra>")) %>% 
+  layout(xaxis = list(title = "Index of Relative Socio-Economic Disadvantage",
+                      ticktext = list("1\n(most disadvantaged)", "2", "3", "4", "5\n(least disadvantaged)"),
+                      tickvals = list(1,2,3,4,5)),
+         yaxis = list(title = "Suicide rate per 100,000 \n resident population"),
+         font = list(size = 14),
+         showlegend = FALSE))
+
+saveWidget(figure4, "Blog_figures/figure4.html", selfcontained = F, libdir = "index_files")
+```
+
+```{r}
+suicides %>% 
+  count(cultural_background)
+
+suicides %>% 
+  count(cald)
+
+suicides %>% 
+  count(disability_register)
+```
+
+```{r}
+atsi_denominators = read_csv("C:\\Users\\jagvan\\OneDrive - South Australia Government\\Code\\Population\\my_denominators.csv")
+
+atsi_rates = suicides %>% 
+  count(cultural_background) %>% 
+  left_join(atsi_denominators %>%
+              mutate(cultural_background = fct_recode(cultural_background, "Aboriginal or Torres Strait Islander" = "ATSI")) %>% 
+              filter(age_years >= 12) %>% 
+              group_by(cultural_background) %>% 
+              summarise(adj_pop = sum(adjusted_population))) %>% 
+  mutate(rate = n/adj_pop*100000)
+```
+
